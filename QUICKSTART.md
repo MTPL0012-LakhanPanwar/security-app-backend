@@ -222,7 +222,7 @@ chmod 755 uploads/qr-codes
 
 ## 🎉 Success!
 
-You now have a fully functional camera lock backend system running!
+You now have a fully functional Security App backend system running!
 
 The system flow:
 ```

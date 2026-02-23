@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Camera Lock System API",
-    "description": "Complete API collection for Camera Lock Backend System",
+    "name": "Security App System API",
+    "description": "Complete API collection for Security App Backend System",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [

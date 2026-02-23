@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "setup": "node scripts/setup_poc.js",
+    "setup": "node scripts/setup.js",
     "generate-qr": "node scripts/generateQR.js",
     "generate-printable": "node scripts/generate_printable_qrs.js"
   },

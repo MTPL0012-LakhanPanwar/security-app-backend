@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: jabil-security-app
+    name: security-app
     env: node
     plan: free
     buildCommand: npm install

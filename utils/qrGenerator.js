@@ -27,7 +27,7 @@ exports.generateQRData = (action, facilityId, metadata = {}) => {
 
 // Generate QR code URL
 exports.generateQRURL = (token, action) => {
-  const deepLinkScheme = process.env.DEEP_LINK_SCHEME || 'jabilsecurity://';
+  const deepLinkScheme = process.env.DEEP_LINK_SCHEME || 'security-app://';
   
   // Create deep link URL
   return `${deepLinkScheme}enroll?action=${action}&token=${token}`;

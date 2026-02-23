@@ -1,12 +1,12 @@
-# Camera Lock Backend (POC)
+# Security App Backend
 
-A streamlined Node.js backend for the Camera Lock App POC. This backend handles device enrollment (entry/lock) and unenrollment (exit/unlock) via QR codes.
+A streamlined Node.js backend for the Security App. This backend handles device enrollment (entry/lock) and unenrollment (exit/unlock) via QR codes.
 
 ## 🚀 Features
 
 - **Entry Scan**: Validates entry QR and locks camera.
 - **Exit Scan**: Validates exit QR and unlocks camera.
-- **POC Setup**: Script to generate Entry/Exit QRs for testing.
+- **Setup**: Script to generate Entry/Exit QRs for testing.
 
 ## 📋 Prerequisites
 

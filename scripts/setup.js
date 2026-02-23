@@ -4,7 +4,7 @@ const Facility = require('../models/Facility.model');
 const QRCode = require('../models/QRCode.model');
 const qrGenerator = require('../utils/qrGenerator');
 
-const setupPOC = async () => {
+const setup = async () => {
   try {
     // Connect to database
     if (!process.env.MONGODB_URI) {
@@ -91,9 +91,9 @@ const setupPOC = async () => {
     
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error setting up POC:', error);
+    console.error('❌ Error setting up:', error);
     process.exit(1);
   }
 };
 
-setupPOC();
+setup();
