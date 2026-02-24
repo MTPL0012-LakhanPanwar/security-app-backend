@@ -22,10 +22,14 @@ async function generateDailyQRsForFacility(facility, dateStr) {
   const dayStart = new Date(`${dateStr}T00:00:00.000Z`);
   const dayEnd = new Date(`${dateStr}T23:59:59.999Z`);
 
-  // Expire and remove any existing QR for that facility for previous dates
+  // Expire and remove any existing QR for that facility not matching today's date
   const oldQrs = await QRCode.find({
     facilityId: facility._id,
-    validUntil: { $lt: dayStart },
+    $or: [
+      { generatedForDate: { $ne: dateStr } },
+      { generatedForDate: { $exists: false } },
+      { validUntil: { $lt: dayStart } },
+    ],
   });
 
   for (const qr of oldQrs) {
@@ -39,7 +43,11 @@ async function generateDailyQRsForFacility(facility, dateStr) {
   // Remove old QR records entirely (retention 0 days as per requirement)
   await QRCode.deleteMany({
     facilityId: facility._id,
-    validUntil: { $lt: dayStart },
+    $or: [
+      { generatedForDate: { $ne: dateStr } },
+      { generatedForDate: { $exists: false } },
+      { validUntil: { $lt: dayStart } },
+    ],
   });
 
   // Generate validity window (1 day)
@@ -116,7 +124,10 @@ async function generateDailyQRsForFacility(facility, dateStr) {
         ],
       });
     } catch (err) {
-      console.error("Daily QR email failed:", err.message);
+      console.error(
+        `Daily QR email failed for facility ${facility.name}:`,
+        err.message
+      );
     }
   }
 

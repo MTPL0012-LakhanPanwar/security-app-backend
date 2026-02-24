@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Security App System API",
-    "description": "Complete API collection for Security App Backend System",
+    "name": "Security App Collection",
+    "description": "Minimal Postman collection for the currently available public/admin enrollment APIs and health check.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -11,292 +11,94 @@
       "type": "string"
     },
     {
-      "key": "token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "facility_id",
-      "value": "",
-      "type": "string"
-    },
-    {
       "key": "device_id",
       "value": "test-device-123",
+      "type": "string"
+    },
+    {
+      "key": "entry_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "exit_token",
+      "value": "",
       "type": "string"
     }
   ],
   "item": [
     {
-      "name": "Authentication",
+      "name": "Health",
       "item": [
         {
-          "name": "Login",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set('token', jsonData.data.token);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin@123456\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/auth/login",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "login"]
-            }
-          }
-        },
-        {
-          "name": "Get Current User",
+          "name": "Service Health",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
             "url": {
-              "raw": "{{base_url}}/auth/me",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "me"]
+              "raw": "{{base_url}}/../health",
+              "host": [
+                "{{base_url}}",
+                ".."
+              ],
+              "path": [
+                "health"
+              ]
             }
           }
         }
       ]
     },
     {
-      "name": "Facilities",
+      "name": "Enrollments (User)",
       "item": [
         {
-          "name": "Create Facility",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set('facility_id', jsonData.data.facility._id);",
-                  "}"
-                ]
-              }
-            }
-          ],
+          "name": "Scan Entry (Lock Camera)",
           "request": {
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Main Building\",\n  \"location\": {\n    \"address\": \"123 Main Street\",\n    \"city\": \"Indore\",\n    \"state\": \"Madhya Pradesh\",\n    \"country\": \"India\"\n  },\n  \"description\": \"Main office building\",\n  \"settings\": {\n    \"maxEnrollmentDuration\": 24,\n    \"requireExitScan\": true\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/facilities",
-              "host": ["{{base_url}}"],
-              "path": ["facilities"]
-            }
-          }
-        },
-        {
-          "name": "Get All Facilities",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/facilities",
-              "host": ["{{base_url}}"],
-              "path": ["facilities"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "QR Codes",
-      "item": [
-        {
-          "name": "Generate QR Codes",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"facilityId\": \"{{facility_id}}\",\n  \"metadata\": {\n    \"location\": \"Main Entrance\",\n    \"description\": \"Entry point\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/qr/generate",
-              "host": ["{{base_url}}"],
-              "path": ["qr", "generate"]
-            }
-          }
-        },
-        {
-          "name": "Get Facility QR Codes",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/qr/facility/{{facility_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["qr", "facility", "{{facility_id}}"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Enrollments",
-      "item": [
-        {
-          "name": "Validate QR Code",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"token\": \"paste-qr-token-here\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/enrollments/validate-qr",
-              "host": ["{{base_url}}"],
-              "path": ["enrollments", "validate-qr"]
-            }
-          }
-        },
-        {
-          "name": "Scan Entry QR (Lock Camera)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"token\": \"paste-entry-qr-token-here\",\n  \"deviceId\": \"{{device_id}}\",\n  \"deviceInfo\": {\n    \"manufacturer\": \"Samsung\",\n    \"model\": \"Galaxy S21\",\n    \"osVersion\": \"Android 13\",\n    \"platform\": \"android\",\n    \"appVersion\": \"1.0.0\",\n    \"deviceName\": \"My Phone\"\n  },\n  \"visitorInfo\": {\n    \"name\": \"John Doe\",\n    \"email\": \"john@example.com\",\n    \"phone\": \"+1234567890\",\n    \"purpose\": \"Business Meeting\",\n    \"company\": \"ABC Corporation\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"token\": \"{{entry_token}}\",\n  \"deviceId\": \"{{device_id}}\",\n  \"deviceInfo\": {\n    \"manufacturer\": \"Samsung\",\n    \"model\": \"Galaxy S21\",\n    \"osVersion\": \"Android 13\",\n    \"platform\": \"android\",\n    \"appVersion\": \"1.0.0\",\n    \"deviceName\": \"My Phone\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}/enrollments/scan-entry",
-              "host": ["{{base_url}}"],
-              "path": ["enrollments", "scan-entry"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "enrollments",
+                "scan-entry"
+              ]
             }
           }
         },
         {
-          "name": "Scan Exit QR (Unlock Camera)",
+          "name": "Scan Exit (Unlock Camera)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"token\": \"paste-exit-qr-token-here\",\n  \"deviceId\": \"{{device_id}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"token\": \"{{exit_token}}\",\n  \"deviceId\": \"{{device_id}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/enrollments/scan-exit",
-              "host": ["{{base_url}}"],
-              "path": ["enrollments", "scan-exit"]
-            }
-          }
-        },
-        {
-          "name": "Get Enrollment Status",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/enrollments/status/{{device_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["enrollments", "status", "{{device_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Get All Enrollments (Admin)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/enrollments?status=active&page=1&limit=20",
-              "host": ["{{base_url}}"],
-              "path": ["enrollments"],
-              "query": [
-                {
-                  "key": "status",
-                  "value": "active"
-                },
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "20"
-                }
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "enrollments",
+                "scan-exit"
               ]
             }
           }
@@ -304,138 +106,35 @@
       ]
     },
     {
-      "name": "Devices",
+      "name": "Enrollments (Admin)",
       "item": [
         {
-          "name": "Get All Devices",
+          "name": "Force Exit (Forgot Exit Scan)",
           "request": {
-            "method": "GET",
+            "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enrollmentId\": \"<active_enrollment_id>\",\n  \"initiatedBy\": \"Admin Name\",\n  \"reason\": \"User forgot to scan exit\"\n}"
+            },
             "url": {
-              "raw": "{{base_url}}/devices?status=active&page=1&limit=20",
-              "host": ["{{base_url}}"],
-              "path": ["devices"],
-              "query": [
-                {
-                  "key": "status",
-                  "value": "active"
-                },
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "20"
-                }
+              "raw": "{{base_url}}/enrollments/admin/force-exit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "enrollments",
+                "admin",
+                "force-exit"
               ]
             }
-          }
-        },
-        {
-          "name": "Get Device Details",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/devices/{{device_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["devices", "{{device_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Block Device",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/devices/{{device_id}}/block",
-              "host": ["{{base_url}}"],
-              "path": ["devices", "{{device_id}}", "block"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Admin Dashboard",
-      "item": [
-        {
-          "name": "Get Dashboard Stats",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/admin/dashboard",
-              "host": ["{{base_url}}"],
-              "path": ["admin", "dashboard"]
-            }
-          }
-        },
-        {
-          "name": "Get Audit Logs",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/admin/logs?page=1&limit=50",
-              "host": ["{{base_url}}"],
-              "path": ["admin", "logs"],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "50"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "System Health",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/admin/health",
-              "host": ["{{base_url}}"],
-              "path": ["admin", "health"]
-            }
-          }
+          },
+          "description": "Protect this route with auth middleware when available."
         }
       ]
     }

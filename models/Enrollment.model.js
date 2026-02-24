@@ -59,8 +59,7 @@ const enrollmentSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-enrollmentSchema.index({ enrollmentId: 1 });
+// Indexes (omit enrollmentId because unique already creates it)
 enrollmentSchema.index({ deviceId: 1 });
 enrollmentSchema.index({ facilityId: 1 });
 enrollmentSchema.index({ status: 1 });

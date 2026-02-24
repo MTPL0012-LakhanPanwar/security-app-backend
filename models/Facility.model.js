@@ -61,8 +61,7 @@ const facilitySchema = new mongoose.Schema(
   }
 );
 
-// Index for faster queries
-facilitySchema.index({ facilityId: 1 });
+// Index for faster queries (omit facilityId because unique already creates it)
 facilitySchema.index({ status: 1 });
 facilitySchema.index({ name: 1 });
 

@@ -10,8 +10,14 @@ const generateQRCodes = async (facilityId) => {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
 
-    // Find facility
-    const facility = await Facility.findById(facilityId);
+    // Find facility by Mongo _id or by facilityId string
+    let facility = null;
+    if (mongoose.Types.ObjectId.isValid(facilityId)) {
+      facility = await Facility.findById(facilityId);
+    }
+    if (!facility) {
+      facility = await Facility.findOne({ facilityId });
+    }
     
     if (!facility) {
       console.error('Facility not found');

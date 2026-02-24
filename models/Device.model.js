@@ -50,8 +50,7 @@ const deviceSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-deviceSchema.index({ deviceId: 1 });
+// Indexes (omit deviceId because unique already creates it)
 deviceSchema.index({ status: 1 });
 deviceSchema.index({ currentFacility: 1 });
 // Method to update last activity
