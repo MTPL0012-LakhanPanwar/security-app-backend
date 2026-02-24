@@ -196,15 +196,41 @@ function scheduleDailyJob() {
 
       for (const facility of facilities) {
         await expireActiveEnrollmentsForFacility(facility._id, now);
-        await generateDailyQRsForFacility(facility, dateStr);
+        await ensureTodayQRCodes(facility, dateStr);
       }
     },
     { timezone }
   );
 }
 
+// Generate if today's QR codes are missing; otherwise leave today's in place
+async function ensureTodayQRCodes(facility, dateStr) {
+  const existingToday = await QRCode.countDocuments({
+    facilityId: facility._id,
+    generatedForDate: dateStr,
+    status: "active",
+  });
+
+  if (existingToday < 2) {
+    return generateDailyQRsForFacility(facility, dateStr);
+  }
+  return null;
+}
+
+// Run once on startup to ensure today's QR codes exist
+async function runDailyJobOnce() {
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10);
+  const facilities = await Facility.find({ status: "active" });
+  for (const facility of facilities) {
+    await expireActiveEnrollmentsForFacility(facility._id, now);
+    await ensureTodayQRCodes(facility, dateStr);
+  }
+}
+
 module.exports = {
   scheduleDailyJob,
+  runDailyJobOnce,
   generateDailyQRsForFacility,
   expireActiveEnrollmentsForFacility,
 };

@@ -60,6 +60,8 @@ A streamlined Node.js backend for the Security App. This backend handles device 
    ```bash
    npm start
    ```
+
+   **Production cron:** set `DAILY_QR_CRON=0 12 * * *` and `DAILY_QR_TZ` to your plant timezone so QR generation + email runs once per day at noon. Avoid using the rapid cron (`*/2 * * * *`) outside of testing.
    Server runs on `http://localhost:5000`.
 
 ## 📚 API Endpoints

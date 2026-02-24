@@ -6,7 +6,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
 const axios = require('axios');
-const { scheduleDailyJob } = require('./services/dailyQRService');
+const { scheduleDailyJob, runDailyJobOnce } = require('./services/dailyQRService');
 
 // Import routes
 const enrollmentRoutes = require('./routes/enrollment.routes');
@@ -87,6 +87,8 @@ mongoose.connect(process.env.MONGODB_URI)
 
       // Start daily QR rotation + emailer
       scheduleDailyJob();
+      // Ensure today's QR codes exist immediately on boot
+      runDailyJobOnce().catch(err => console.error('Startup daily job failed:', err));
     });
   })
   .catch((err) => {
