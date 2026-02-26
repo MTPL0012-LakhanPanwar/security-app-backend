@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const Facility = require("../models/Facility.model");
 const QRCode = require("../models/QRCode.model");
 const qrGenerator = require("../utils/qrGenerator");
+const { sendEmail, buildDailyQREmail } = require("../utils/emailService");
 
 const slugify = (str) =>
   String(str || "facility")
@@ -72,6 +73,32 @@ const generateForFacility = async (facility) => {
   console.log(`ID: ${exitQRCode.qrCodeId}`);
   console.log(`Image: ${exitQRCode.imagePath}`);
   console.log(`Valid until: ${validUntil.toISOString()}\n`);
+
+  // Send email with today's QR attachments if facility has notification emails
+  if (facility.notificationEmails && facility.notificationEmails.length) {
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const html = buildDailyQREmail({
+      facilityName: facility.name,
+      date: dateStr,
+    });
+
+    try {
+      await sendEmail({
+        to: facility.notificationEmails,
+        subject: `Daily QR ${facility.name} — ${dateStr} (manual run)`,
+        html,
+        attachments: [
+          { filename: `ENTRY-${facility.name}-${dateStr}.png`, path: entryQRCode.imagePath },
+          { filename: `EXIT-${facility.name}-${dateStr}.png`, path: exitQRCode.imagePath },
+        ],
+      });
+      console.log(`Email sent to: ${facility.notificationEmails.join(", ")}`);
+    } catch (emailErr) {
+      console.error(`Failed to send email for ${facility.name}:`, emailErr.message);
+    }
+  } else {
+    console.log("No notification emails configured; skipping email send.");
+  }
 
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("QR Codes generated successfully!");
