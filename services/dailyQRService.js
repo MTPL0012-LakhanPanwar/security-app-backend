@@ -25,10 +25,59 @@ const safeUnlink = async (filePath) => {
   }
 };
 
-// Generate entry & exit QR for a facility for a given date (YYYY-MM-DD)
-async function generateDailyQRsForFacility(facility, dateStr) {
-  const dayStart = new Date(`${dateStr}T00:00:00.000Z`);
-  const dayEnd = new Date(`${dateStr}T23:59:59.999Z`);
+const RAW_DEFAULT_TZ = process.env.DAILY_QR_TZ || "UTC";
+const TZ_ALIASES = {
+  IST: "Asia/Kolkata",
+};
+
+const normalizeTimeZone = (tz) => {
+  const candidate = TZ_ALIASES[tz] || tz || "UTC";
+  try {
+    // Validate timezone
+    new Intl.DateTimeFormat("en-US", { timeZone: candidate }).format();
+    return candidate;
+  } catch (err) {
+    console.warn(
+      `Invalid timezone "${tz}" provided; falling back to UTC`
+    );
+    return "UTC";
+  }
+};
+
+const DEFAULT_TZ = normalizeTimeZone(RAW_DEFAULT_TZ);
+
+// Compute date string + start/end of day in the facility's timezone (or env default)
+function getDateContext(facility, referenceDate = new Date()) {
+  const timeZone = normalizeTimeZone(facility?.timezone || DEFAULT_TZ);
+
+  // YYYY-MM-DD for the facility timezone
+  const dateStr = referenceDate.toLocaleDateString("en-CA", { timeZone });
+
+  // Offset minutes between facility TZ and UTC at this reference time
+  const tzOffsetMinutes =
+    (new Date(referenceDate.toLocaleString("en-US", { timeZone })).getTime() -
+      referenceDate.getTime()) /
+    60000;
+  const offsetMs = tzOffsetMinutes * 60 * 1000;
+
+  // Start and end of that day in UTC, respecting the facility timezone
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const validFrom = new Date(
+    Date.UTC(year, month - 1, day, 0, 0, 0, 0) - offsetMs
+  );
+  const validUntil = new Date(
+    Date.UTC(year, month - 1, day, 23, 59, 59, 999) - offsetMs
+  );
+
+  return { timeZone, dateStr, validFrom, validUntil };
+}
+
+// Generate entry & exit QR for a facility for a given day (defaults to "today" in facility TZ)
+async function generateDailyQRsForFacility(facility, referenceDate = new Date()) {
+  const { dateStr, validFrom, validUntil } = getDateContext(
+    facility,
+    referenceDate
+  );
 
   // Expire and remove any existing QR for that facility not matching today's date
   const oldQrs = await QRCode.find({
@@ -36,7 +85,7 @@ async function generateDailyQRsForFacility(facility, dateStr) {
     $or: [
       { generatedForDate: { $ne: dateStr } },
       { generatedForDate: { $exists: false } },
-      { validUntil: { $lt: dayStart } },
+      { validUntil: { $lt: validFrom } },
     ],
   });
 
@@ -54,13 +103,10 @@ async function generateDailyQRsForFacility(facility, dateStr) {
     $or: [
       { generatedForDate: { $ne: dateStr } },
       { generatedForDate: { $exists: false } },
-      { validUntil: { $lt: dayStart } },
+      { validUntil: { $lt: validFrom } },
     ],
   });
 
-  // Generate validity window (1 day)
-  const validFrom = dayStart;
-  const validUntil = dayEnd;
   const slug = slugify(facility.name);
 
   // Entry QR
@@ -184,19 +230,17 @@ async function expireActiveEnrollmentsForFacility(facilityId, cutoff) {
 // Run daily job at 00:05 server time (can be aligned per facility TZ later)
 function scheduleDailyJob() {
   const cronExp = process.env.DAILY_QR_CRON || "0 0 * * *"; // default midnight daily
-  const timezone = process.env.DAILY_QR_TZ || "UTC";
+  const timezone = DEFAULT_TZ;
 
   cron.schedule(
     cronExp,
     async () => {
       const now = new Date();
-      const dateStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
-
       const facilities = await Facility.find({ status: "active" });
 
       for (const facility of facilities) {
         await expireActiveEnrollmentsForFacility(facility._id, now);
-        await ensureTodayQRCodes(facility, dateStr);
+        await ensureTodayQRCodes(facility, now);
       }
     },
     { timezone }
@@ -204,7 +248,9 @@ function scheduleDailyJob() {
 }
 
 // Generate if today's QR codes are missing; otherwise leave today's in place
-async function ensureTodayQRCodes(facility, dateStr) {
+async function ensureTodayQRCodes(facility, referenceDate = new Date()) {
+  const { dateStr } = getDateContext(facility, referenceDate);
+
   const existingToday = await QRCode.countDocuments({
     facilityId: facility._id,
     generatedForDate: dateStr,
@@ -212,7 +258,7 @@ async function ensureTodayQRCodes(facility, dateStr) {
   });
 
   if (existingToday < 2) {
-    return generateDailyQRsForFacility(facility, dateStr);
+    return generateDailyQRsForFacility(facility, referenceDate);
   }
   return null;
 }
@@ -220,11 +266,10 @@ async function ensureTodayQRCodes(facility, dateStr) {
 // Run once on startup to ensure today's QR codes exist
 async function runDailyJobOnce() {
   const now = new Date();
-  const dateStr = now.toISOString().slice(0, 10);
   const facilities = await Facility.find({ status: "active" });
   for (const facility of facilities) {
     await expireActiveEnrollmentsForFacility(facility._id, now);
-    await ensureTodayQRCodes(facility, dateStr);
+    await ensureTodayQRCodes(facility, now);
   }
 }
 

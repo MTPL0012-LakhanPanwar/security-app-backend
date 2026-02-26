@@ -47,8 +47,7 @@ exports.createFacility = async (req, res) => {
     // so callers don't need to run a separate script for first-day codes.
     let qrResult = null;
     try {
-      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD in UTC
-      qrResult = await generateDailyQRsForFacility(facility, today);
+      qrResult = await generateDailyQRsForFacility(facility, new Date());
     } catch (qrErr) {
       console.error("facility create: QR generation failed:", qrErr);
     }
