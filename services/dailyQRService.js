@@ -1,4 +1,3 @@
-const fs = require("fs").promises;
 const cron = require("node-cron");
 const Facility = require("../models/Facility.model");
 const QRCode = require("../models/QRCode.model");
@@ -7,6 +6,7 @@ const Enrollment = require("../models/Enrollment.model");
 const qrGenerator = require("../utils/qrGenerator");
 const { sendEmail, buildDailyQREmail } = require("../utils/emailService");
 const mdmService = require("../utils/mdmService");
+const { safeUnlink } = require("../utils/file");
 
 // basic slugify for filenames/ids
 const slugify = (str) =>
@@ -15,15 +15,6 @@ const slugify = (str) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
-
-// Helper: delete file safely
-const safeUnlink = async (filePath) => {
-  try {
-    await fs.unlink(filePath);
-  } catch (err) {
-    if (err.code !== "ENOENT") throw err;
-  }
-};
 
 const RAW_DEFAULT_TZ = process.env.DAILY_QR_TZ || "UTC";
 const TZ_ALIASES = {
@@ -37,9 +28,7 @@ const normalizeTimeZone = (tz) => {
     new Intl.DateTimeFormat("en-US", { timeZone: candidate }).format();
     return candidate;
   } catch (err) {
-    console.warn(
-      `Invalid timezone "${tz}" provided; falling back to UTC`
-    );
+    console.warn(`Invalid timezone "${tz}" provided; falling back to UTC`);
     return "UTC";
   }
 };
@@ -73,7 +62,10 @@ function getDateContext(facility, referenceDate = new Date()) {
 }
 
 // Generate entry & exit QR for a facility for a given day (defaults to "today" in facility TZ)
-async function generateDailyQRsForFacility(facility, referenceDate = new Date()) {
+async function generateDailyQRsForFacility(
+  facility,
+  referenceDate = new Date()
+) {
   const { dateStr, validFrom, validUntil } = getDateContext(
     facility,
     referenceDate

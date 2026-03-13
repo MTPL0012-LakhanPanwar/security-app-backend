@@ -1,7 +1,12 @@
 const { v4: uuidv4 } = require("uuid");
-const mongoose = require("mongoose");
 const Facility = require("../models/Facility.model");
 const { generateDailyQRsForFacility } = require("../services/dailyQRService");
+const {
+  findFacilityById,
+  attachActiveQRCodes,
+  detachDevicesAndEnrollments,
+} = require("../services/facilityService");
+const { safeUnlink } = require("../utils/file");
 
 // @desc    Admin: create facility
 // @route   POST /api/admin/facilities
@@ -92,10 +97,12 @@ exports.getAllFacilities = async (req, res) => {
       Facility.countDocuments(filter),
     ]);
 
+    const itemsWithQrs = await attachActiveQRCodes(items, req);
+
     return res.status(200).json({
       status: "success",
       data: {
-        items,
+        items: itemsWithQrs,
         page: pageNum,
         limit: limitNum,
         total,
@@ -111,14 +118,6 @@ exports.getAllFacilities = async (req, res) => {
   }
 };
 
-// helper to find by id or facilityId
-const findFacilityById = async (id) => {
-  return (
-    (await Facility.findOne({ facilityId: id })) ||
-    (mongoose.Types.ObjectId.isValid(id) ? await Facility.findById(id) : null)
-  );
-};
-
 // @desc    Admin: get facility detail
 // @route   GET /api/admin/facilities/:id
 exports.getFacilityById = async (req, res) => {
@@ -132,7 +131,11 @@ exports.getFacilityById = async (req, res) => {
         .json({ status: "error", message: "Facility not found" });
     }
 
-    return res.status(200).json({ status: "success", data: facility });
+    const [facilityWithQrs] = await attachActiveQRCodes([facility], req);
+
+    return res
+      .status(200)
+      .json({ status: "success", data: facilityWithQrs || facility });
   } catch (error) {
     return res.status(500).json({
       status: "error",
@@ -201,7 +204,7 @@ exports.updateFacility = async (req, res) => {
   }
 };
 
-// @desc    Admin: delete facility (soft delete -> status inactive)
+// @desc    Admin: delete facility (hard delete)
 // @route   DELETE /api/admin/facilities/:id
 exports.deleteFacility = async (req, res) => {
   try {
@@ -214,17 +217,22 @@ exports.deleteFacility = async (req, res) => {
         .json({ status: "error", message: "Facility not found" });
     }
 
-    facility.status = "inactive";
-    facility.updatedAt = new Date();
-    await facility.save();
+    // Unlock/detach devices and delete enrollments
+    await detachDevicesAndEnrollments(facility._id);
 
-    return res
-      .status(200)
-      .json({
-        status: "success",
-        message: "Facility inactivated",
-        data: facility,
-      });
+    // Remove QR images + records tied to this facility
+    const facilityQRCodes = await QRCode.find({ facilityId: facility._id });
+    for (const qr of facilityQRCodes) {
+      await safeUnlink(qr.imagePath);
+    }
+    await QRCode.deleteMany({ facilityId: facility._id });
+
+    await facility.deleteOne();
+
+    return res.status(200).json({
+      status: "success",
+      message: "Facility deleted",
+    });
   } catch (error) {
     return res.status(500).json({
       status: "error",
