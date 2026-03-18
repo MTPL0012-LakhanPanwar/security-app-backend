@@ -21,6 +21,16 @@ const TZ_ALIASES = {
   IST: "Asia/Kolkata",
 };
 
+// Configurable QR validity window (defaults to 90 days)
+const getValidityDays = () => {
+  const parsed = parseInt(process.env.QR_VALIDITY_DAYS, 10);
+  if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  return 90;
+};
+
+const QR_VALIDITY_DAYS = getValidityDays();
+const QR_VALIDITY_MS = QR_VALIDITY_DAYS * 24 * 60 * 60 * 1000;
+
 const normalizeTimeZone = (tz) => {
   const candidate = TZ_ALIASES[tz] || tz || "UTC";
   try {
@@ -54,9 +64,8 @@ function getDateContext(facility, referenceDate = new Date()) {
   const validFrom = new Date(
     Date.UTC(year, month - 1, day, 0, 0, 0, 0) - offsetMs
   );
-  const validUntil = new Date(
-    Date.UTC(year, month - 1, day, 23, 59, 59, 999) - offsetMs
-  );
+  // validUntil extends from start-of-day for configured number of days
+  const validUntil = new Date(validFrom.getTime() + QR_VALIDITY_MS - 1);
 
   return { timeZone, dateStr, validFrom, validUntil };
 }
@@ -71,32 +80,23 @@ async function generateDailyQRsForFacility(
     referenceDate
   );
 
-  // Expire and remove any existing QR for that facility not matching today's date
-  const oldQrs = await QRCode.find({
+  // Expire and remove QR codes whose validity window has passed
+  const now = new Date(referenceDate);
+  const expiredQrs = await QRCode.find({
     facilityId: facility._id,
-    $or: [
-      { generatedForDate: { $ne: dateStr } },
-      { generatedForDate: { $exists: false } },
-      { validUntil: { $lt: validFrom } },
-    ],
+    validUntil: { $lt: now },
   });
 
-  for (const qr of oldQrs) {
-    // expire status
+  for (const qr of expiredQrs) {
     qr.status = "expired";
     await qr.save();
 
     if (qr.imagePath) await safeUnlink(qr.imagePath);
   }
 
-  // Remove old QR records entirely (retention 0 days as per requirement)
   await QRCode.deleteMany({
     facilityId: facility._id,
-    $or: [
-      { generatedForDate: { $ne: dateStr } },
-      { generatedForDate: { $exists: false } },
-      { validUntil: { $lt: validFrom } },
-    ],
+    validUntil: { $lt: now },
   });
 
   const slug = slugify(facility.name);
@@ -232,27 +232,30 @@ function scheduleDailyJob() {
 
       for (const facility of facilities) {
         await expireActiveEnrollmentsForFacility(facility._id, now);
-        await ensureTodayQRCodes(facility, now);
+        await ensureActiveQRCodes(facility, now);
       }
     },
     { timezone }
   );
 }
 
-// Generate if today's QR codes are missing; otherwise leave today's in place
-async function ensureTodayQRCodes(facility, referenceDate = new Date()) {
-  const { dateStr } = getDateContext(facility, referenceDate);
+// Generate QR codes only when there isn't an active entry + exit pair for the facility
+async function ensureActiveQRCodes(facility, referenceDate = new Date()) {
+  const now = new Date(referenceDate);
 
-  const existingToday = await QRCode.countDocuments({
+  const activeQrs = await QRCode.find({
     facilityId: facility._id,
-    generatedForDate: dateStr,
     status: "active",
-  });
+    validFrom: { $lte: now },
+    validUntil: { $gte: now },
+  }).lean();
 
-  if (existingToday < 2) {
-    return generateDailyQRsForFacility(facility, referenceDate);
-  }
-  return null;
+  const hasEntry = activeQrs.some((qr) => qr.type === "entry");
+  const hasExit = activeQrs.some((qr) => qr.type === "exit");
+
+  if (hasEntry && hasExit) return null;
+
+  return generateDailyQRsForFacility(facility, referenceDate);
 }
 
 // Run once on startup to ensure today's QR codes exist
@@ -261,7 +264,7 @@ async function runDailyJobOnce() {
   const facilities = await Facility.find({ status: "active" });
   for (const facility of facilities) {
     await expireActiveEnrollmentsForFacility(facility._id, now);
-    await ensureTodayQRCodes(facility, now);
+    await ensureActiveQRCodes(facility, now);
   }
 }
 
@@ -270,4 +273,5 @@ module.exports = {
   runDailyJobOnce,
   generateDailyQRsForFacility,
   expireActiveEnrollmentsForFacility,
+  ensureActiveQRCodes,
 };

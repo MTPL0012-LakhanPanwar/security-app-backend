@@ -27,6 +27,7 @@ npm install
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/security-app-system
 JWT_SECRET=change-me
+QR_VALIDITY_DAYS=90
 ADMIN_TOKEN_EXPIRE=15d
 RESTORE_TOKEN_EXPIRE=2h
 ALLOWED_ORIGINS=http://localhost:3000

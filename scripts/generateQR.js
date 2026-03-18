@@ -12,13 +12,19 @@ const slugify = (str) =>
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
 
+const getValidityDays = () => {
+  const parsed = parseInt(process.env.QR_VALIDITY_DAYS, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 90;
+};
+
+const QR_VALIDITY_MS = getValidityDays() * 24 * 60 * 60 * 1000;
+
 const generateForFacility = async (facility) => {
   console.log(`\nGenerating QR codes for: ${facility.name}`);
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
-  // Set validity period (30 days)
-  const validUntil = new Date();
-  validUntil.setDate(validUntil.getDate() + 30);
+  const validFrom = new Date();
+  const validUntil = new Date(validFrom.getTime() + QR_VALIDITY_MS - 1);
   const slug = slugify(facility.name);
   const today = new Date().toISOString().slice(0, 10);
 
@@ -40,6 +46,7 @@ const generateForFacility = async (facility) => {
     url: entryQR.url,
     imagePath: entryQR.imagePath,
     metadata: { location: "Main Entrance", type: "entry" },
+    validFrom,
     validUntil,
   });
 
@@ -65,6 +72,7 @@ const generateForFacility = async (facility) => {
     url: exitQR.url,
     imagePath: exitQR.imagePath,
     metadata: { location: "Main Exit", type: "exit" },
+    validFrom,
     validUntil,
   });
 
@@ -86,13 +94,22 @@ const generateForFacility = async (facility) => {
         subject: `Daily QR ${facility.name} — ${dateStr} (manual run)`,
         html,
         attachments: [
-          { filename: `ENTRY-${facility.name}-${dateStr}.png`, path: entryQRCode.imagePath },
-          { filename: `EXIT-${facility.name}-${dateStr}.png`, path: exitQRCode.imagePath },
+          {
+            filename: `ENTRY-${facility.name}-${dateStr}.png`,
+            path: entryQRCode.imagePath,
+          },
+          {
+            filename: `EXIT-${facility.name}-${dateStr}.png`,
+            path: exitQRCode.imagePath,
+          },
         ],
       });
       console.log(`Email sent to: ${facility.notificationEmails.join(", ")}`);
     } catch (emailErr) {
-      console.error(`Failed to send email for ${facility.name}:`, emailErr.message);
+      console.error(
+        `Failed to send email for ${facility.name}:`,
+        emailErr.message
+      );
     }
   } else {
     console.log("No notification emails configured; skipping email send.");
