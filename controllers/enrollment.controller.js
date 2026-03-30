@@ -302,7 +302,7 @@ exports.scanExit = async (req, res) => {
       return res.status(400).json({
         status: "error",
         message:
-          "Exit QR belongs to a different facility. Please scan the exit QR for your current enrollment.",
+          "Exit QR doesn’t match this facility. Please scan the correct exit QR.",
       });
     }
 
