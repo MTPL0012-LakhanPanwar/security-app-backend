@@ -14,7 +14,7 @@ npm install
 Copy values into `.env` (see README for full list):
 ```
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/security-app-system
+MONGODB_URI=mongodb://localhost:27017/cam-shield-system
 JWT_SECRET=change-me
 ```
 
@@ -30,7 +30,7 @@ curl -X POST http://localhost:5000/api/facilities/create-facility \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Main Building",
-    "notificationEmails": ["security@example.com"],
+    "notificationEmails": ["camshield@example.com"],
     "timezone": "UTC"
   }'
 ```
@@ -102,4 +102,4 @@ curl -X POST http://localhost:5000/api/enrollments/restore-from-push \
 ```
 
 ## 10) Postman
-Import `Security_App_API.postman_collection.json` and set `base_url`, `admin_token`, and tokens in the collection variables.
+Import `camshield_App_API.postman_collection.json` and set `base_url`, `admin_token`, and tokens in the collection variables.

@@ -236,7 +236,7 @@ class MDMService {
       const body = {
         to: pushToken,
         notification: {
-          title: payload?.title || "Security App",
+          title: payload?.title || "Cam Shield App",
           body: payload?.message || "Action required",
         },
         data: payload || {},
