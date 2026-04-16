@@ -10,6 +10,7 @@ const {
   scheduleDailyJob,
   runDailyJobOnce,
 } = require("./services/dailyQRService");
+const logger = require("./utils/logger");
 
 // Import routes
 const enrollmentRoutes = require("./routes/enrollment.routes");
@@ -18,6 +19,7 @@ const adminRoutes = require("./routes/admin.routes");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
+const requestId = require("./middleware/requestId");
 
 // Initialize Express app
 const app = express();
@@ -34,6 +36,9 @@ app.use(
 // Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Request ID middleware (should be before other middleware)
+app.use(requestId);
 
 // Logging middleware
 if (process.env.NODE_ENV === "development") {
@@ -82,23 +87,15 @@ mongoose
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
 
-      // Self-Ping to keep Render free tier alive (Every 14 mins)
-      if (process.env.RENDER_EXTERNAL_URL) {
-        console.log("Keep-Alive service started");
-        setInterval(() => {
-          axios
-            .get(`${process.env.RENDER_EXTERNAL_URL}/health`)
-            .then(() => console.log("Self-ping success"))
-            .catch((e) => console.error("Self-ping failed:", e.message));
-        }, 14 * 60 * 1000); // 14 minutes
-      }
-
       // Start daily QR rotation + emailer
       scheduleDailyJob();
       // Ensure today's QR codes exist immediately on boot
       runDailyJobOnce().catch((err) =>
         console.error("Startup daily job failed:", err)
       );
+
+      // Schedule log cleanup (runs daily at 2 AM)
+      logger.scheduleLogCleanup();
     });
   })
   .catch((err) => {
