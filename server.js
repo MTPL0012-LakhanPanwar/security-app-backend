@@ -10,6 +10,7 @@ const {
   scheduleDailyJob,
   runDailyJobOnce,
 } = require("./services/dailyQRService");
+const logger = require("./utils/logger");
 
 // Import routes
 const enrollmentRoutes = require("./routes/enrollment.routes");
@@ -18,6 +19,7 @@ const adminRoutes = require("./routes/admin.routes");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
+const requestId = require('./middleware/requestId');
 
 // Initialize Express app
 const app = express();
@@ -34,6 +36,9 @@ app.use(
 // Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Request ID middleware (should be before other middleware)
+app.use(requestId);
 
 // Logging middleware
 if (process.env.NODE_ENV === "development") {
@@ -99,6 +104,9 @@ mongoose
       runDailyJobOnce().catch((err) =>
         console.error("Startup daily job failed:", err)
       );
+      
+      // Schedule log cleanup (runs daily at 2 AM)
+      logger.scheduleLogCleanup();
     });
   })
   .catch((err) => {

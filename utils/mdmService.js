@@ -1,4 +1,5 @@
 const axios = require("axios");
+const logger = require("./logger");
 
 class MDMService {
   // Android: Enroll device with Work Profile
@@ -75,18 +76,53 @@ class MDMService {
 
   // Lock camera on device
   async lockCamera(deviceId, platform) {
+    const operationId = `lock_${deviceId}_${Date.now()}`;
+    
     try {
-      console.log(`Locking camera for device: ${deviceId} (${platform})`);
+      logger.info(`[MDM] Locking camera for device: ${deviceId} (${platform})`, {
+        operationId,
+        deviceId,
+        platform,
+        timestamp: new Date().toISOString()
+      });
 
       if (platform === "android") {
-        return await this.lockAndroidCamera(deviceId);
+        const result = await this.lockAndroidCamera(deviceId);
+        logger.info(`[MDM] Android camera lock completed`, {
+          operationId,
+          deviceId,
+          success: result.success,
+          appliedAt: result.appliedAt
+        });
+        return result;
       } else if (platform === "ios") {
-        return await this.lockiOSCamera(deviceId);
+        const result = await this.lockiOSCamera(deviceId);
+        logger.info(`[MDM] iOS camera lock completed`, {
+          operationId,
+          deviceId,
+          success: result.success,
+          appliedAt: result.appliedAt
+        });
+        return result;
       }
 
-      throw new Error("Unsupported platform");
+      const error = "Unsupported platform";
+      logger.error(`[MDM] ${error}`, {
+        operationId,
+        deviceId,
+        platform
+      });
+      
+      throw new Error(error);
     } catch (error) {
-      console.error("Camera lock error:", error);
+      logger.error(`[MDM] Camera lock operation failed`, {
+        operationId,
+        deviceId,
+        platform,
+        error: error.message,
+        stack: error.stack
+      });
+      
       return {
         success: false,
         error: error.message,
@@ -96,18 +132,53 @@ class MDMService {
 
   // Unlock camera on device
   async unlockCamera(deviceId, platform) {
+    const operationId = `unlock_${deviceId}_${Date.now()}`;
+    
     try {
-      console.log(`Unlocking camera for device: ${deviceId} (${platform})`);
+      logger.info(`[MDM] Unlocking camera for device: ${deviceId} (${platform})`, {
+        operationId,
+        deviceId,
+        platform,
+        timestamp: new Date().toISOString()
+      });
 
       if (platform === "android") {
-        return await this.unlockAndroidCamera(deviceId);
+        const result = await this.unlockAndroidCamera(deviceId);
+        logger.info(`[MDM] Android camera unlock completed`, {
+          operationId,
+          deviceId,
+          success: result.success,
+          appliedAt: result.appliedAt
+        });
+        return result;
       } else if (platform === "ios") {
-        return await this.unlockiOSCamera(deviceId);
+        const result = await this.unlockiOSCamera(deviceId);
+        logger.info(`[MDM] iOS camera unlock completed`, {
+          operationId,
+          deviceId,
+          success: result.success,
+          appliedAt: result.appliedAt
+        });
+        return result;
       }
 
-      throw new Error("Unsupported platform");
+      const error = "Unsupported platform";
+      logger.error(`[MDM] ${error}`, {
+        operationId,
+        deviceId,
+        platform
+      });
+      
+      throw new Error(error);
     } catch (error) {
-      console.error("Camera unlock error:", error);
+      logger.error(`[MDM] Camera unlock operation failed`, {
+        operationId,
+        deviceId,
+        platform,
+        error: error.message,
+        stack: error.stack
+      });
+      
       return {
         success: false,
         error: error.message,
@@ -223,13 +294,23 @@ class MDMService {
 
   // Send push notification to device
   async sendPushNotification(pushToken, payload) {
+    const operationId = `push_${Date.now()}`;
+    
     try {
       if (!pushToken) {
+        logger.warn(`[MDM] Push notification failed - missing pushToken`, {
+          operationId,
+          hasPushToken: false
+        });
         return { success: false, error: "missing pushToken" };
       }
 
       const serverKey = process.env.FCM_SERVER_KEY;
       if (!serverKey) {
+        logger.error(`[MDM] Push notification failed - FCM_SERVER_KEY not configured`, {
+          operationId,
+          hasServerKey: false
+        });
         return { success: false, error: "FCM_SERVER_KEY not configured" };
       }
 
@@ -242,22 +323,47 @@ class MDMService {
         data: payload || {},
         priority: "high",
       };
+      
+      logger.info(`[MDM] Sending push notification`, {
+        operationId,
+        pushToken: pushToken.substring(0, 20) + '...',
+        title: body.notification.title,
+        body: body.notification.body,
+        hasData: !!Object.keys(body.data).length
+      });
 
-      await axios.post("https://fcm.googleapis.com/fcm/send", body, {
+      const response = await axios.post("https://fcm.googleapis.com/fcm/send", body, {
         headers: {
           Authorization: `key=${serverKey}`,
           "Content-Type": "application/json",
         },
       });
+      
+      logger.info(`[MDM] Push notification sent successfully`, {
+        operationId,
+        status: response.status,
+        fcmMessageId: response.data?.message_id,
+        fcmFailure: response.data?.failure
+      });
 
       return {
         success: true,
         sentAt: new Date().toISOString(),
+        fcmResponse: response.data
       };
     } catch (error) {
+      logger.error(`[MDM] Push notification failed`, {
+        operationId,
+        pushToken: pushToken ? pushToken.substring(0, 20) + '...' : 'none',
+        error: error.message,
+        responseStatus: error.response?.status,
+        responseData: error.response?.data
+      });
+      
       return {
         success: false,
         error: error.message,
+        fcmError: error.response?.data
       };
     }
   }

@@ -14,7 +14,7 @@ npm install
 Copy values into `.env` (see README for full list):
 ```
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/cam-block-system
+MONGODB_URI=mongodb://localhost:27017/CamBlock-system
 JWT_SECRET=change-me
 ```
 
