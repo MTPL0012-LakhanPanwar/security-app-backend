@@ -1,6 +1,7 @@
 const Device = require("../models/Device.model");
 const Enrollment = require("../models/Enrollment.model");
 const mdmService = require("../utils/mdmService");
+const firebaseService = require("../utils/firebaseService");
 const { generateRestoreToken } = require("../utils/jwt");
 
 // @desc    Admin: list active devices (search by deviceId/visitorId/model)
@@ -167,21 +168,43 @@ exports.forceExit = async (req, res) => {
     // Unlock camera
     await mdmService.unlockCamera(device.deviceId, device.deviceInfo.platform);
 
-    // Send restore push notification (best-effort)
+    // Send restore push notification (with Firebase + MDM fallback)
     let pushResult = { success: false, reason: "missing_push_token" };
+    let firebaseResult = { success: false, reason: "firebase_not_available" };
     let restoreToken = null;
+    
     if (device.pushToken) {
       restoreToken = generateRestoreToken({
         enrollmentId: enrollment.enrollmentId,
         deviceId: device.deviceId,
       });
-      pushResult = await mdmService.sendPushNotification(device.pushToken, {
+
+      const pushPayload = {
         type: "RESTORE",
         token: restoreToken,
         deviceId: device.deviceId,
         facilityId: enrollment.facilityId,
+        title: "CamBlock - Device Check Out",
         message: "Tap to restore your device permissions",
-      });
+      };
+
+      // Try Firebase first (enhanced features)
+      try {
+        firebaseResult = await firebaseService.sendEnhancedPush(device.pushToken, pushPayload);
+      } catch (firebaseError) {
+        console.warn("Firebase push failed, falling back to MDM:", firebaseError.message);
+      }
+
+      // Fallback to MDM service if Firebase fails or is not configured
+      if (!firebaseResult.success) {
+        try {
+          pushResult = await mdmService.sendPushNotification(device.pushToken, pushPayload);
+        } catch (mdmError) {
+          console.warn("MDM push also failed:", mdmError.message);
+        }
+      } else {
+        pushResult = firebaseResult; // Use Firebase result if successful
+      }
     }
 
     // Update enrollment & device
@@ -203,6 +226,8 @@ exports.forceExit = async (req, res) => {
         action: "UNLOCK_CAMERA",
         enrollmentId: enrollment.enrollmentId,
         pushSent: pushResult.success,
+        firebasePushSent: firebaseResult.success,
+        pushService: pushResult.service || 'mdm',
         restoreToken,
       },
     });
